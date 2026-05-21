@@ -1,0 +1,1230 @@
+openapi: 3.0.0
+info:
+  title: Hospital Management System API
+  description: REST API for HMS V2 supporting Admin, Doctor, and Patient operations.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Admin
+  - name: Doctor
+  - name: Patient
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: admin@example.com
+        password:
+          type: string
+          example: Admin@123
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          example: Kirti Gupta
+        email:
+          type: string
+          example: patient@example.com
+        password:
+          type: string
+          example: Patient@123
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        role:
+          type: string
+          example: patient
+        user_id:
+          type: integer
+          example: 5
+
+    MeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        is_active:
+          type: boolean
+        is_blacklisted:
+          type: boolean
+
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        doctors_count:
+          type: integer
+
+    DoctorSummary:
+      type: object
+      properties:
+        doctor_id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        specialization:
+          type: string
+          nullable: true
+        department_id:
+          type: integer
+          nullable: true
+        department:
+          type: string
+          nullable: true
+        is_blacklisted:
+          type: boolean
+        is_active:
+          type: boolean
+
+    PatientSummary:
+      type: object
+      properties:
+        patient_id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        gender:
+          type: string
+          nullable: true
+        age:
+          type: integer
+          nullable: true
+        medical_history:
+          type: string
+          nullable: true
+        is_blacklisted:
+          type: boolean
+        is_active:
+          type: boolean
+
+    AppointmentSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        appointment_id:
+          type: integer
+        doctor_id:
+          type: integer
+        doctor_name:
+          type: string
+          nullable: true
+        patient_id:
+          type: integer
+        patient_name:
+          type: string
+          nullable: true
+        appt_date:
+          type: string
+          format: date
+        appt_time:
+          type: string
+          example: "10:30"
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+          example: "10:30"
+        status:
+          type: string
+          example: Booked
+
+    TreatmentPayload:
+      type: object
+      properties:
+        diagnosis:
+          type: string
+          nullable: true
+        prescription:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    AvailabilitySlot:
+      type: object
+      properties:
+        id:
+          type: integer
+        avail_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          example: "09:00"
+        end_time:
+          type: string
+          example: "09:30"
+
+    ExportJob:
+      type: object
+      properties:
+        id:
+          type: integer
+        patient_id:
+          type: integer
+        task_id:
+          type: string
+          nullable: true
+        status:
+          type: string
+          example: queued
+        file_name:
+          type: string
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          nullable: true
+        completed_at:
+          type: string
+          nullable: true
+        download_url:
+          type: string
+          nullable: true
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: API is running
+
+  /db-check:
+    get:
+      tags: [Health]
+      summary: Database object counts
+      security: []
+      responses:
+        "200":
+          description: Database counts returned
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new patient
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Patient registered successfully
+        "400":
+          description: Missing required fields
+        "409":
+          description: Email already registered
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login for admin, doctor, or patient
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+        "403":
+          description: User blacklisted or inactive
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          description: Unauthorized
+
+  /ping/admin:
+    get:
+      tags: [Auth]
+      summary: Admin role proof endpoint
+      responses:
+        "200":
+          description: Admin token verified
+        "403":
+          description: Forbidden
+
+  /ping/doctor:
+    get:
+      tags: [Auth]
+      summary: Doctor role proof endpoint
+      responses:
+        "200":
+          description: Doctor token verified
+        "403":
+          description: Forbidden
+
+  /ping/patient:
+    get:
+      tags: [Auth]
+      summary: Patient role proof endpoint
+      responses:
+        "200":
+          description: Patient token verified
+        "403":
+          description: Forbidden
+
+  /admin/summary:
+    get:
+      tags: [Admin]
+      summary: Admin dashboard summary
+      responses:
+        "200":
+          description: Summary counts returned
+
+  /admin/departments:
+    get:
+      tags: [Admin]
+      summary: List departments
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search by department name
+      responses:
+        "200":
+          description: Department list returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Department"
+
+    post:
+      tags: [Admin]
+      summary: Create department
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "201":
+          description: Department created
+        "400":
+          description: Invalid input
+        "409":
+          description: Department already exists
+
+  /admin/departments/{dept_id}:
+    delete:
+      tags: [Admin]
+      summary: Delete department
+      parameters:
+        - in: path
+          name: dept_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Department deleted
+        "409":
+          description: Department has assigned doctors
+
+  /admin/doctors:
+    get:
+      tags: [Admin]
+      summary: List/search doctors
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: department
+          schema:
+            type: string
+        - in: query
+          name: blacklisted
+          schema:
+            type: string
+            enum: ["0", "1"]
+      responses:
+        "200":
+          description: Doctor list returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DoctorSummary"
+
+    post:
+      tags: [Admin]
+      summary: Create doctor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                specialization:
+                  type: string
+                department_id:
+                  type: integer
+                temp_password:
+                  type: string
+      responses:
+        "201":
+          description: Doctor created
+        "400":
+          description: Invalid input
+        "409":
+          description: Email already exists
+
+  /admin/doctors/{doctor_id}:
+    put:
+      tags: [Admin]
+      summary: Update doctor
+      parameters:
+        - in: path
+          name: doctor_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                specialization:
+                  type: string
+                department_id:
+                  type: integer
+                  nullable: true
+      responses:
+        "200":
+          description: Doctor updated
+        "400":
+          description: Invalid department_id
+        "404":
+          description: Doctor not found
+
+    delete:
+      tags: [Admin]
+      summary: Delete doctor
+      parameters:
+        - in: path
+          name: doctor_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Doctor deleted successfully
+        "400":
+          description: Doctor has upcoming appointments or history
+        "404":
+          description: Doctor not found
+
+  /admin/doctors/{doctor_id}/blacklist:
+    patch:
+      tags: [Admin]
+      summary: Blacklist or unblacklist doctor
+      parameters:
+        - in: path
+          name: doctor_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Doctor blacklist updated
+
+  /admin/doctors/{doctor_id}/disable:
+    patch:
+      tags: [Admin]
+      summary: Disable or enable doctor
+      parameters:
+        - in: path
+          name: doctor_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Doctor active status updated
+
+  /admin/patients:
+    get:
+      tags: [Admin]
+      summary: List/search patients
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: blacklisted
+          schema:
+            type: string
+            enum: ["0", "1"]
+      responses:
+        "200":
+          description: Patient list returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PatientSummary"
+
+  /admin/patients/{patient_id}/blacklist:
+    patch:
+      tags: [Admin]
+      summary: Blacklist or unblacklist patient
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Patient blacklist updated
+
+  /admin/patients/{patient_id}/disable:
+    patch:
+      tags: [Admin]
+      summary: Disable or enable patient
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Patient active status updated
+
+  /admin/appointments:
+    get:
+      tags: [Admin]
+      summary: List appointments
+      parameters:
+        - in: query
+          name: scope
+          schema:
+            type: string
+            enum: [upcoming, past]
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Appointment list returned
+
+  /admin/appointments/{appointment_id}/cancel:
+    patch:
+      tags: [Admin]
+      summary: Cancel appointment
+      parameters:
+        - in: path
+          name: appointment_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Appointment cancelled
+
+  /admin/appointments/{appointment_id}/complete:
+    patch:
+      tags: [Admin]
+      summary: Mark appointment completed
+      parameters:
+        - in: path
+          name: appointment_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Appointment marked completed
+
+  /admin/appointments/{appointment_id}/reschedule:
+    patch:
+      tags: [Admin]
+      summary: Reschedule appointment
+      parameters:
+        - in: path
+          name: appointment_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appt_date, appt_time]
+              properties:
+                appt_date:
+                  type: string
+                  format: date
+                appt_time:
+                  type: string
+                  example: "11:00"
+      responses:
+        "200":
+          description: Appointment rescheduled
+        "400":
+          description: Invalid input
+        "409":
+          description: Slot conflict
+
+  /admin/jobs/daily-reminders/run:
+    post:
+      tags: [Admin]
+      summary: Trigger daily reminder job manually
+      responses:
+        "202":
+          description: Daily reminder job queued
+
+  /admin/jobs/monthly-reports/run:
+    post:
+      tags: [Admin]
+      summary: Trigger monthly doctor report job manually
+      responses:
+        "202":
+          description: Monthly report job queued
+
+  /admin/jobs/{task_id}/status:
+    get:
+      tags: [Admin]
+      summary: Check background task status
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task status returned
+
+  /admin/audit/schema:
+    get:
+      tags: [Admin]
+      summary: Database schema audit
+      responses:
+        "200":
+          description: Schema audit returned
+
+  /admin/audit/relationships:
+    get:
+      tags: [Admin]
+      summary: Relationship audit with sample joins
+      responses:
+        "200":
+          description: Relationship audit returned
+
+  /doctor/dashboard:
+    get:
+      tags: [Doctor]
+      summary: Doctor dashboard
+      responses:
+        "200":
+          description: Dashboard data returned
+
+  /doctor/appointments:
+    get:
+      tags: [Doctor]
+      summary: List doctor appointments
+      parameters:
+        - in: query
+          name: range
+          schema:
+            type: string
+            enum: [today, week]
+      responses:
+        "200":
+          description: Appointment list returned
+
+  /doctor/appointments/{appointment_id}/status:
+    patch:
+      tags: [Doctor]
+      summary: Update appointment status
+      parameters:
+        - in: path
+          name: appointment_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [Booked, Completed, Cancelled]
+      responses:
+        "200":
+          description: Status updated
+        "400":
+          description: Invalid status
+        "403":
+          description: Forbidden
+
+  /doctor/appointments/{appointment_id}/treatment:
+    get:
+      tags: [Doctor]
+      summary: Get appointment treatment details
+      parameters:
+        - in: path
+          name: appointment_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Treatment details returned
+
+    put:
+      tags: [Doctor]
+      summary: Create or update treatment
+      parameters:
+        - in: path
+          name: appointment_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TreatmentPayload"
+      responses:
+        "200":
+          description: Treatment updated
+        "403":
+          description: Forbidden
+
+  /doctor/patients:
+    get:
+      tags: [Doctor]
+      summary: List patients assigned to doctor
+      responses:
+        "200":
+          description: Patient list returned
+
+  /doctor/patients/{patient_id}/history:
+    get:
+      tags: [Doctor]
+      summary: Get treatment history of a doctor’s patient
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Patient history returned
+        "404":
+          description: Patient not found for this doctor
+
+  /doctor/availability:
+    get:
+      tags: [Doctor]
+      summary: List doctor availability for next 7 days
+      responses:
+        "200":
+          description: Availability slots returned
+
+    post:
+      tags: [Doctor]
+      summary: Add doctor availability slot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, start_time, end_time]
+              properties:
+                date:
+                  type: string
+                  format: date
+                start_time:
+                  type: string
+                  example: "09:00"
+                end_time:
+                  type: string
+                  example: "09:30"
+      responses:
+        "201":
+          description: Availability slot created
+        "400":
+          description: Invalid input
+        "409":
+          description: Slot overlap exists
+
+  /doctor/availability/{slot_id}:
+    delete:
+      tags: [Doctor]
+      summary: Delete doctor availability slot
+      parameters:
+        - in: path
+          name: slot_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Availability slot deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Slot not found
+
+  /doctor/profile:
+    get:
+      tags: [Doctor]
+      summary: Get doctor profile
+      responses:
+        "200":
+          description: Doctor profile returned
+
+    put:
+      tags: [Doctor]
+      summary: Update doctor profile
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                specialization:
+                  type: string
+                department_id:
+                  type: integer
+                  nullable: true
+      responses:
+        "200":
+          description: Profile updated
+        "400":
+          description: Invalid department_id
+        "409":
+          description: Email already exists
+
+  /patient/dashboard:
+    get:
+      tags: [Patient]
+      summary: Patient dashboard
+      responses:
+        "200":
+          description: Dashboard data returned
+
+  /patient/profile:
+    get:
+      tags: [Patient]
+      summary: Get patient profile
+      responses:
+        "200":
+          description: Patient profile returned
+
+    put:
+      tags: [Patient]
+      summary: Update patient profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                phone:
+                  type: string
+                address:
+                  type: string
+                gender:
+                  type: string
+                medical_history:
+                  type: string
+                age:
+                  type: integer
+      responses:
+        "200":
+          description: Profile updated
+        "400":
+          description: Invalid input
+
+  /patient/doctors:
+    get:
+      tags: [Patient]
+      summary: List/search doctors with next 7 days availability
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: department
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Doctor list returned
+
+  /patient/doctors/{doctor_id}:
+    get:
+      tags: [Patient]
+      summary: Get single doctor details and slots for a selected date
+      parameters:
+        - in: path
+          name: doctor_id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Doctor detail returned
+        "400":
+          description: Invalid date format
+        "404":
+          description: Doctor not available
+
+  /patient/appointments:
+    get:
+      tags: [Patient]
+      summary: List patient appointments
+      responses:
+        "200":
+          description: Upcoming and past appointments returned
+
+    post:
+      tags: [Patient]
+      summary: Book appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doctor_id, date, time]
+              properties:
+                doctor_id:
+                  type: integer
+                date:
+                  type: string
+                  format: date
+                time:
+                  type: string
+                  example: "10:30"
+      responses:
+        "201":
+          description: Appointment booked
+        "400":
+          description: Invalid input
+        "404":
+          description: Doctor not available
+        "409":
+          description: Slot unavailable or patient conflict
+
+  /patient/appointments/{appt_id}:
+    get:
+      tags: [Patient]
+      summary: Get one patient appointment
+      parameters:
+        - in: path
+          name: appt_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Appointment details returned
+        "403":
+          description: Forbidden
+        "404":
+          description: Appointment not found
+
+  /patient/appointments/{appt_id}/reschedule:
+    put:
+      tags: [Patient]
+      summary: Reschedule appointment
+      parameters:
+        - in: path
+          name: appt_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, time]
+              properties:
+                date:
+                  type: string
+                  format: date
+                time:
+                  type: string
+                  example: "11:00"
+      responses:
+        "200":
+          description: Appointment rescheduled
+        "400":
+          description: Invalid input
+        "403":
+          description: Forbidden
+        "409":
+          description: Appointment cannot be rescheduled or slot conflict
+
+  /patient/appointments/{appt_id}/cancel:
+    put:
+      tags: [Patient]
+      summary: Cancel appointment
+      parameters:
+        - in: path
+          name: appt_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Appointment cancelled
+        "403":
+          description: Forbidden
+        "409":
+          description: Appointment cannot be cancelled
+
+  /patient/history:
+    get:
+      tags: [Patient]
+      summary: Get completed treatment history
+      responses:
+        "200":
+          description: Treatment history returned
+
+  /patient/exports/treatments:
+    post:
+      tags: [Patient]
+      summary: Trigger treatment CSV export
+      responses:
+        "202":
+          description: Export job created
+        "409":
+          description: Export already in progress
+
+  /patient/exports:
+    get:
+      tags: [Patient]
+      summary: List patient export jobs
+      responses:
+        "200":
+          description: Export jobs returned
+
+  /patient/exports/{job_id}:
+    get:
+      tags: [Patient]
+      summary: Get one export job
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Export job returned
+        "403":
+          description: Forbidden
+        "404":
+          description: Export job not found
+
+  /patient/exports/{job_id}/download:
+    get:
+      tags: [Patient]
+      summary: Download completed CSV export
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: CSV file download
+        "403":
+          description: Forbidden
+        "404":
+          description: Export file missing
+        "409":
+          description: Export not ready

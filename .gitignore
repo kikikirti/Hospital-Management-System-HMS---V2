@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+.venv_wsl/
+
+# Flask / SQLite
+backend/instance/
+*.db
+*.sqlite3
+backend/instance/exports/
+*.csv
+backend/instance/reports/
+*.csv
+
+# Vue / Frontend
+node_modules/
+frontend/node_modules/
+dist/
+.vite/
+
+# Redis / Celery
+dump.rdb
+celerybeat-schedule
+celerybeat.pid
+backend/
+*.bak
+*.dir
+*.log
+*.dat
+
+
+# OS
+.DS_Store
+Thumbs.db
